@@ -1,0 +1,27 @@
+#!/bin/bash -ex
+
+pushd `dirname $0` > /dev/null
+SCRIPTPATH=`pwd -P`
+popd > /dev/null
+
+echo Setting up Python virtual environment
+mkdir -p build
+python3 -m venv build/venv
+. build/venv/bin/activate
+
+echo Adding pyinstaller
+pip3 install pyinstaller
+
+echo Installing cbdep requirements
+pip3 install -r ${SCRIPTPATH}/requirements.txt
+
+echo Compiling cb-non-package-installer
+PYINSTDIR=$(pwd)/build/pyinstaller
+mkdir -p ${PYINSTDIR}
+pyinstaller --log-level DEBUG \
+    --workpath ${PYINSTDIR} \
+    --specpath ${PYINSTDIR} \
+    --distpath dist --noconfirm \
+    --onefile \
+    --paths ${SCRIPTPATH} \
+    ${SCRIPTPATH}/cb-non-package-installer
