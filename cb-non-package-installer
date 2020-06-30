@@ -28,6 +28,7 @@ import logging
 import re
 import os
 import subprocess
+import sys
 
 FNULL = open(os.devnull, 'w')
 VERSION = (6, 6)
@@ -38,7 +39,7 @@ def error(message):
     Logs the error and exits
     """
     logging.error(message)
-    exit(1)
+    sys.exit(1)
 
 
 def get_package_version(package):
@@ -227,7 +228,7 @@ def upgrade(package, location, package_type):
     if package_version[:2] == VERSION:
         cbupgrade(location)
     print('Upgrade has completed successfully')
-    exit(0)
+    sys.exit(0)
 
 
 def which(command):
@@ -343,7 +344,7 @@ def main():
         install(args.package, args.location, package_type)
     if args.upgrade:
         upgrade(args.package, args.location, package_type)
-    exit(0)
+    sys.exit(0)
 
 
 if __name__ == '__main__':
