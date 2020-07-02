@@ -286,7 +286,7 @@ def check_deb_dependencies(package):
             line = line[9:]
             for command in line.split(','):
                 check_command = True
-                for x in ["libc", "libtinfo5", "init-system-helpers", "lsb-base", "libncurses", "libssl", "python-httplib2"]:
+                for x in ["libc", "libtinfo", "init-system-helpers", "lsb-base", "libncurses", "libssl", "python-httplib2"]:
                     if command.strip().startswith(x):
                         check_command = False
                         break
