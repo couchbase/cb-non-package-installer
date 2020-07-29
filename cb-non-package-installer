@@ -51,7 +51,7 @@ def get_package_version(package):
     # Only support RPM base distros
     # couchbase-server-enterprise-5.5.4-MP1-centos7.x86_64.rpm
     # couchbase-server-enterprise-6.0.1-centos8.x86_64.rpm
-    regex_package_version = re.compile(r'^couchbase-server-enterprise(-|_)'
+    regex_package_version = re.compile(r'^couchbase-server-(enterprise|community)(-|_)'
                                        r'(?P<major>\d+)\.(?P<minor>\d+)\.(?P<maintenance>\d+)'
                                        r'-[0-9a-zA-Z_\-\.]+(rpm|deb)$')
     match = regex_package_version.match(package)
