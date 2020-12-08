@@ -31,7 +31,7 @@ import subprocess
 import sys
 
 FNULL = open(os.devnull, 'w')
-VERSION = (6, 6)
+VERSION = (7, 0)
 
 
 def error(message):
@@ -267,7 +267,7 @@ def check_rpm_dependencies(package):
     rpm_output = subprocess.check_output(['rpm', '-qpR', package], encoding='UTF-8')
     for line in rpm_output.splitlines():
         check_command = True
-        for x in ['shadow-utils', 'rpmfind', 'rpmlib', 'pwdutils']:
+        for x in ['shadow-utils', 'rpmfind', 'rpmlib', 'pwdutils', 'config(', 'libc']:
             if line.startswith(x):
                 check_command = False
                 break
