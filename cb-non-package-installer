@@ -262,18 +262,18 @@ def check_package_dependencies(package, package_type):
 
 def check_rpm_dependencies(package):
     """
-    Check that the dependencies of Couchbase Server are available from a rpm package.
+    Check that the dependencies of Couchbase Server are available using rpm.
     """
-    rpm_output = subprocess.check_output(['rpm', '-qpR', package], encoding='UTF-8')
-    for line in rpm_output.splitlines():
-        check_command = True
-        for x in ['shadow-utils', 'rpmfind', 'rpmlib', 'pwdutils', 'config(', 'libc', 'findutils']:
-            if line.startswith(x):
-                check_command = False
-                break
-        command = line.split(' ')[0]
-        if check_command and not which(command):
-            error(f'Cannot install Couchbase Server missing dependency: "{command}"')
+    rpm_output = subprocess.run(['rpm', '--test', '-i', package], capture_output=True, text=True, check=False)
+    if rpm_output.returncode == 0:
+        return
+    lines = rpm_output.stderr.strip()
+    lines = lines.split('\n')
+    if 'dependencies' in lines[0]:
+        commands = [line.strip().split()[0] for line in lines[1:]]
+        error(f'Cannot install Couchbase Server missing dependencies: {" ".join(commands)}')
+    else:
+        error(f'Cannot check dependencies: {rpm_output.stderr}')
 
 
 def check_deb_dependencies(package):
