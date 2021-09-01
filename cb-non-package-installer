@@ -27,6 +27,7 @@ import argparse
 import logging
 import re
 import os
+import shutil
 import subprocess
 import sys
 
@@ -109,7 +110,7 @@ def install(package, location, package_type):
     if get_package_version(package)[:2] > VERSION:
         error(f'Can only install up to version {VERSION[0]}.{VERSION[1]}.X')
     if os.listdir(location):
-        error(f'Install location "{location}" is not empty, please provide an empty directory to install to')
+        error(f'Install location "{location}" is not empty. Please provide an empty directory to install to')
 
     unpack(package, location, package_type)
     print('Successfully installed')
@@ -122,7 +123,7 @@ def check_upgrade_versions(package_version, install_version):
     if package_version[:2] > VERSION:
         error(f'Can only upgrade up to version {VERSION[0]}.{VERSION[1]}.X')
     if package_version < install_version:
-        error(f'Cannot upgrade installed package {".".join(install_version)} is newer than {package_version}')
+        error(f'Cannot upgrade: installed package {".".join(install_version)} is newer than {package_version}')
     if install_version < (5, 0, 0):
         error(f'Upgrade only supported between versions 5.0.0 and {VERSION[0]},{VERSION[1]}.X')
 
@@ -131,7 +132,7 @@ def cbupgrade(location):
     """
     Executes cbupgrade
     """
-    print('Running cbupgrade this could take some time')
+    print('Running cbupgrade - this could take some time')
     cbupgrade_cmd = os.path.join(location, 'opt/couchbase/bin/cbupgrade')
     config = os.path.join(location, 'opt/couchbase/var/lib/couchbase/config')
     return_code = subprocess.call([cbupgrade_cmd, '-a', 'yes', '--namespace_upgrade_only', '-c', config], stdout=FNULL)
@@ -145,7 +146,7 @@ def upgrade(package, location, package_type):
     """
     logging.info('Upgrading Couchbase Server')
     if not os.listdir(location):
-        error(f'Upgrade location "{location}" is empty, please provide the location where Couchbase Server is '
+        error(f'Upgrade location "{location}" is empty. Please provide the location where Couchbase Server is '
               'installed')
 
     package_version = get_package_version(package)
@@ -157,7 +158,7 @@ def upgrade(package, location, package_type):
     return_code = subprocess.call(r'ps auxww | grep beam | grep "\-name babysitte[r]"',
                                   shell=True, stdout=FNULL)
     if return_code == 0:
-        error('Couchbase Server is running please shutdown before upgrading')
+        error('Couchbase Server is running. Please shutdown before upgrading')
     elif return_code == 2:
         error('Could not check if Couchbase Server was running')
 
@@ -233,8 +234,7 @@ def upgrade(package, location, package_type):
 
 def which(command):
     logging.debug(f"Checking if command '{command}' is available")
-    return_code = subprocess.call(['which', command], stdout=FNULL)
-    return return_code == 0
+    return shutil.which(command) != None
 
 
 def check_install_dependencies(package_type):
@@ -242,13 +242,19 @@ def check_install_dependencies(package_type):
     Check the dependencies needed to execute this script are available.
     """
     if package_type == 'rpm':
-        commands = ['rpm2cpio', 'cpio', 'rpm', 'perl']
+        repotool = 'yum'
+        commands = ['rpm2cpio', 'cpio', 'rpm', 'perl', 'file']
     else:
-        commands = ['dpkg', 'perl']
+        repotool = 'apt'
+        commands = ['dpkg', 'perl', 'file']
 
-    for command in commands:
-        if not which(command):
-            error(f'Cannot start the install as command "{command}" is not available')
+    missing = [c for c in commands if not which(c)]
+    if len(missing) > 0:
+        output = "' '".join(missing)
+        error(
+            f'Cannot start the install as required command(s) \'{output}\' are not available\n'
+            f'Hint: try " sudo {repotool} install -y \'{output}\' "'
+        )
 
 
 def check_package_dependencies(package, package_type):
@@ -259,6 +265,7 @@ def check_package_dependencies(package, package_type):
         check_rpm_dependencies(package)
     else:
         check_deb_dependencies(package)
+
 
 def check_rpm_dependencies(package):
     """
@@ -274,8 +281,12 @@ def check_rpm_dependencies(package):
     lines = rpm_output.stderr.strip()
     lines = lines.split('\n')
     if 'dependencies' in lines[0]:
-        commands = [line.strip().split()[0] for line in lines[1:]]
-        error(f'Cannot install Couchbase Server missing dependencies: {" ".join(commands)}')
+        deps = [line.strip().split()[0] for line in lines[1:]]
+        output = "' '".join(deps)
+        error(
+            'Cannot install Couchbase Server: missing dependencies\n'
+            f'Hint: try " sudo yum install \'{output}\' "'
+        )
     else:
         error(f'Cannot check dependencies: {rpm_output.stderr}')
 
@@ -295,7 +306,7 @@ def check_deb_dependencies(package):
                         check_command = False
                         break
                 if check_command and not which(command.strip()):
-                    error(f'Cannot install Couchbase Server missing dependency: "{command}"')
+                    error(f'Cannot install Couchbase Server: missing dependency: "{command}"')
 
 
 def main():
