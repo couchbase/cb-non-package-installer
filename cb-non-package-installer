@@ -264,7 +264,11 @@ def check_rpm_dependencies(package):
     """
     Check that the dependencies of Couchbase Server are available using rpm.
     """
-    rpm_output = subprocess.run(['rpm', '--test', '-i', package], capture_output=True, text=True, check=False)
+    rpm_output = subprocess.run(
+        ['rpm', '--test', '-i', package],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        universal_newlines=True, check=False
+    )
     if rpm_output.returncode == 0:
         return
     lines = rpm_output.stderr.strip()
