@@ -31,6 +31,8 @@ import shutil
 import subprocess
 import sys
 
+from _version import __version__, __build__
+
 FNULL = open(os.devnull, 'w')
 VERSION = (7, 0)
 
@@ -371,8 +373,11 @@ def main():
     opts.add_argument('--no-check-deps', action='store_true',
                       help="Don't verify system dependencies (use at own risk)")
     opts.add_argument('-v', '--verbose', action='count', help='increase output verbosity')
+    opts.add_argument('-V', '--version', action='version', help='Display version',
+                      version=f"cb-non-package-installer version {__version__} (build {__build__})")
     args = opts.parse_args()
 
+    # Set up logging
     log_level = None
     if args.verbose is None:
         log_level = logging.WARN
