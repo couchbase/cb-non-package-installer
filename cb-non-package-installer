@@ -34,7 +34,7 @@ import sys
 from _version import __version__, __build__
 
 FNULL = open(os.devnull, 'w')
-VERSION = (7, 0)
+VERSION = (7, 1)
 
 
 def error(message):
