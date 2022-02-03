@@ -173,8 +173,15 @@ def upgrade(package, location, package_type):
     except OSError as e:
         error(f'Cannot create the directory {backup_config} to backup the config: {e}')
     config_files = ['opt/couchbase/etc/couchdb/local.ini',
-                    'opt/couchbase/var/lib/couchbase/couchbase-server.node',
                     'opt/couchbase/var/lib/couchbase/config']
+
+    # The node file is created when the server is run for the first time so adding it to the list of config files
+    # that we want to backup will fail an upgrade if the upgrade is done before this initial run
+    node_file_path = 'opt/couchbase/var/lib/couchbase/couchbase-server.node'
+    remove_first_run_files = False
+    if os.path.exists(os.path.join(location, node_file_path)):
+        remove_first_run_files = True
+        config_files.append(node_file_path)
 
     # The ip file is only on the first node in the cluster
     files = {'opt/couchbase/var/lib/couchbase/ip': False, 'opt/couchbase/var/lib/couchbase/ip_start': False}
@@ -196,11 +203,13 @@ def upgrade(package, location, package_type):
                    'opt/couchbase/LICENSE.txt', 'opt/couchbase/manifest.xml',
                    'opt/couchbase/README.txt', 'opt/couchbase/samples', 'opt/couchbase/share',
                    'opt/couchbase/VARIANT.txt', 'opt/couchbase/VERSION.txt',
-                   'opt/couchbase/var/lib/couchbase/couchbase-server.node',
-                   'opt/couchbase/var/lib/couchbase/config',
-                   'opt/couchbase/var/lib/couchbase/initargs',
-                   'opt/couchbase/var/lib/couchbase/isasl.pw',
-                   'opt/couchbase/var/lib/couchbase/localtoken']
+                   'opt/couchbase/var/lib/couchbase/config']
+
+    if remove_first_run_files:
+        old_install.extend(['opt/couchbase/var/lib/couchbase/couchbase-server.node',
+                            'opt/couchbase/var/lib/couchbase/initargs',
+                            'opt/couchbase/var/lib/couchbase/isasl.pw',
+                            'opt/couchbase/var/lib/couchbase/localtoken'])
 
     for file_path in files:
         if files[file_path]:
