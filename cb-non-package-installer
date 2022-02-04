@@ -172,7 +172,7 @@ def upgrade(package, location, package_type):
         os.mkdir(backup_config)
     except OSError as e:
         error(f'Cannot create the directory {backup_config} to backup the config: {e}')
-    config_files = ['opt/couchbase/etc/couchdb/local.ini',
+    config_paths = ['opt/couchbase/etc/couchdb/local.ini',
                     'opt/couchbase/var/lib/couchbase/config']
 
     # The node file is created when the server is run for the first time so adding it to the list of config files
@@ -181,18 +181,18 @@ def upgrade(package, location, package_type):
     remove_first_run_files = False
     if os.path.exists(os.path.join(location, node_file_path)):
         remove_first_run_files = True
-        config_files.append(node_file_path)
+        config_paths.append(node_file_path)
 
     # The ip file is only on the first node in the cluster
     files = {'opt/couchbase/var/lib/couchbase/ip': False, 'opt/couchbase/var/lib/couchbase/ip_start': False}
     for file_path in files:
         if os.path.exists(os.path.join(location, file_path)):
             files[file_path] = True
-            config_files.append(file_path)
+            config_paths.append(file_path)
 
-    config_files = [os.path.join(location, f) for f in config_files]
+    config_paths = [os.path.normpath(os.path.join(location, f)) for f in config_paths]
 
-    return_code = subprocess.call(['cp', '-r'] + config_files + [backup_config])
+    return_code = subprocess.call(['cp', '-r'] + config_paths + [backup_config])
     if return_code != 0:
         error(f'Problem backing up config to {backup_config}')
 
@@ -224,12 +224,9 @@ def upgrade(package, location, package_type):
     unpack(package, location, package_type)
     # Restore config
     logging.info('Restoring the old config')
-    for config_file in config_files:
-        old_config = os.path.basename(config_file)
-        if old_config == 'config':
-            restore_config_command = f'cp {os.path.join(backup_config, old_config)}/* {config_file}'
-        else:
-            restore_config_command = f'cp {os.path.join(backup_config, old_config)} {config_file}'
+    for restore_path in config_paths:
+        path_end = os.path.basename(restore_path)
+        restore_config_command = f'cp -r {os.path.join(backup_config, path_end)} {restore_path}'
         return_code = subprocess.call(restore_config_command, shell=True)
         if return_code != 0:
             error('Problem restoring old config')
