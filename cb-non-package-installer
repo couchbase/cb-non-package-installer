@@ -168,10 +168,15 @@ def upgrade(package, location, package_type):
     logging.info('Backing up the config')
     backup_config = 'couchbase-server-backup-config'
     backup_config = os.path.abspath(backup_config)
+
+    if os.path.exists(backup_config):
+        error(f"Server configuration backup directory '{backup_config}' already exists, please delete it before "
+            "attempting to upgrade again")
     try:
         os.mkdir(backup_config)
     except OSError as e:
         error(f'Cannot create the directory {backup_config} to backup the config: {e}')
+
     config_paths = ['opt/couchbase/etc/couchdb/local.ini',
                     'opt/couchbase/var/lib/couchbase/config']
 
