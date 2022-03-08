@@ -230,9 +230,12 @@ def upgrade(package, location, package_type):
     # Restore config
     logging.info('Restoring the old config')
     for restore_path in config_paths:
-        path_end = os.path.basename(restore_path)
-        restore_config_command = f'cp -r {os.path.join(backup_config, path_end)} {restore_path}'
-        return_code = subprocess.call(restore_config_command, shell=True)
+        backup_config_path = os.path.join(backup_config, os.path.basename(restore_path))
+        if os.path.isdir(backup_config_path):
+            return_code = subprocess.call(f'rm -r {restore_path}', shell=True)
+            if return_code != 0:
+                error(f'Problem removing the old config directory {restore_path}')
+        return_code = subprocess.call(f'cp -r {backup_config_path} {restore_path}', shell=True)
         if return_code != 0:
             error('Problem restoring old config')
     # Remove backup config
