@@ -20,7 +20,14 @@ To do an upgrade:
    cb-non-package-installer --upgrade --install-location couchbase-home \
   --package couchbase-server-enterprise-6.5.0-centos7.x86_64.rpm
 
-Copyright (c) 2020  Couchbase Inc
+In order to install or upgrade Couchbase server versions that had reached the end of life or upgrade to minor releases
+that the non-package-installer hasn't been validated for yet an environment variable CB_NON_ROOT_IGNORE_VERSION_BOUNDS
+can be used to ignore minimum and maximum version checks for both install and upgrade.
+WARNING: If you are a Couchbase customer, you should only use this functionality after you got a permission from a
+Couchbase representative. The reason for this is that, for example, upgrading to non-validated minor releases could
+potentially result in serious issues, e.g. data loss.
+
+Copyright (c) 2022  Couchbase Inc
 """
 
 import argparse
@@ -34,7 +41,11 @@ import sys
 from _version import __version__, __build__
 
 FNULL = open(os.devnull, 'w')
-VERSION = (7, 1)
+
+# Minimum supported Couchbase server package version (adjusted when a version reaches the end of life)
+MIN_VERSION = (6, 0, 0)
+# Maximum supported Couchbase server package version (adjusted on new minor releases after validation)
+MAX_VERSION = (7, 1, 0)
 
 
 def error(message):
@@ -109,8 +120,7 @@ def install(package, location, package_type):
     Does a fresh non package install of Couchbase Server
     """
     logging.info('Installing Couchbase Server')
-    if get_package_version(package)[:2] > VERSION:
-        error(f'Can only install up to version {VERSION[0]}.{VERSION[1]}.X')
+    check_install_version(get_package_version(package))
     if os.listdir(location):
         error(f'Install location "{location}" is not empty. Please provide an empty directory to install to')
 
@@ -118,16 +128,39 @@ def install(package, location, package_type):
     print('Successfully installed')
 
 
+def check_install_version(package_version):
+    """
+    Checks the install package version
+    """
+    if os.environ.get('CB_NON_ROOT_IGNORE_VERSION_BOUNDS', False):
+        return
+
+    if package_version < MIN_VERSION:
+        error(f'Can only install packages starting from version {_version_to_str(MIN_VERSION)}')
+    if package_version[:2] > MAX_VERSION[:2]:
+        error(f'Can only install packages up to version {_version_to_str(MAX_VERSION, True)}')
+
+
 def check_upgrade_versions(package_version, install_version):
     """
     Checks the installed and the upgrade package versions
     """
-    if package_version[:2] > VERSION:
-        error(f'Can only upgrade up to version {VERSION[0]}.{VERSION[1]}.X')
+    if package_version == install_version:
+        error(f'Cannot upgrade: installed package version {_version_to_str(install_version)} is the same as the one '
+            f'you are are trying to upgrade to')
     if package_version < install_version:
-        error(f'Cannot upgrade: installed package {".".join(install_version)} is newer than {package_version}')
-    if install_version < (5, 0, 0):
-        error(f'Upgrade only supported between versions 5.0.0 and {VERSION[0]},{VERSION[1]}.X')
+        error(f'Cannot upgrade: installed package version {_version_to_str(install_version)} is newer than '
+            f'{_version_to_str(package_version)}, which is the version you are trying to upgrade to')
+
+    if os.environ.get('CB_NON_ROOT_IGNORE_VERSION_BOUNDS', False):
+        return
+
+    if package_version[:2] > MAX_VERSION[:2]:
+        error(f'Upgrades are currently only supported up to version {_version_to_str(MAX_VERSION, True)} but you are '
+            f'trying to upgrade to {_version_to_str(package_version)}')
+    if install_version < MIN_VERSION:
+        error(f'Upgrades are only supported for installed package versions between {_version_to_str(MIN_VERSION)} '
+            f'and {_version_to_str(MAX_VERSION, True)}')
 
 
 def cbupgrade(location):
@@ -239,8 +272,8 @@ def upgrade(package, location, package_type):
         if return_code != 0:
             error('Problem restoring old config')
     # Remove backup config
-    return_codec = subprocess.call(['rm', '-r', backup_config])
-    if return_codec != 0:
+    return_code = subprocess.call(['rm', '-r', backup_config])
+    if return_code != 0:
         error(f'Could not remove the backed up config directory {backup_config}')
     # Running 'cbupgrade' is necessary to upgrade from 6.0.X (and older) to 6.5.0 and newer versions since all of the
     # data items in the cluster have to be upgraded to the collection-aware format (MB-51344 related).
@@ -364,6 +397,16 @@ def check_deb_dependencies(package):
             f'Cannot install Couchbase Server: missing or outdated dependencies: \'{output}\'\n'
             f'Hint: try " sudo apt update && sudo apt install \'{output}\' "'
         )
+
+
+def _version_to_str(version, no_maintenace=False):
+    """
+    Get string representation of a VERSION tuple.
+    """
+    if no_maintenace:
+        return ".".join(str(n) for n in version[:-1]) + ".X"
+    return ".".join(str(n) for n in version)
+
 
 def main():
     """
