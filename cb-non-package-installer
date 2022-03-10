@@ -134,7 +134,7 @@ def cbupgrade(location):
     """
     Executes cbupgrade
     """
-    print('Running cbupgrade - this could take some time')
+    print('Running cbupgrade (this could take some time)')
     cbupgrade_cmd = os.path.join(location, 'opt/couchbase/bin/cbupgrade')
     config = os.path.join(location, 'opt/couchbase/var/lib/couchbase/config')
     return_code = subprocess.call([cbupgrade_cmd, '-a', 'yes', '--namespace_upgrade_only', '-c', config], stdout=FNULL)
@@ -242,8 +242,11 @@ def upgrade(package, location, package_type):
     return_codec = subprocess.call(['rm', '-r', backup_config])
     if return_codec != 0:
         error(f'Could not remove the backed up config directory {backup_config}')
-    if package_version[:2] == VERSION:
-        cbupgrade(location)
+    # Running 'cbupgrade' is necessary to upgrade from 6.0.X (and older) to 6.5.0 and newer versions since all of the
+    # data items in the cluster have to be upgraded to the collection-aware format (MB-51344 related).
+    # 'cbupgrade' is run for all versions during root upgrades using rpm and deb packages so we also run it for all
+    # versions to be consistent.
+    cbupgrade(location)
     print('Upgrade has completed successfully')
     sys.exit(0)
 
