@@ -46,6 +46,8 @@ FNULL = open(os.devnull, 'w')
 MIN_VERSION = (6, 0, 0)
 # Maximum supported Couchbase server package version (adjusted on new minor releases after validation)
 MAX_VERSION = (7, 1, 0)
+# This list should be updated when either the minimum or the maximum version is updated
+SUPPORTED_VERSIONS_LIST = ['6.0.X', '6.5.X', '6.6.X', '7.0.X', '7.1.X']
 
 
 def error(message):
@@ -399,6 +401,14 @@ def check_deb_dependencies(package):
         )
 
 
+def list_supported_versions():
+    """
+    List all Couchbase server versions that are supported by the non-package-installer.
+    """
+    for version in SUPPORTED_VERSIONS_LIST:
+        print(version)
+
+
 def _version_to_str(version, no_maintenace=False):
     """
     Get string representation of a VERSION tuple.
@@ -426,9 +436,11 @@ def main():
                               help='To do a fresh install of Couchbase Server')
     action_group.add_argument('--upgrade', action='store_true',
                               help='To upgrade an existing install of Couchbase Server')
+    action_group.add_argument('--list-supported-versions', action='store_true',
+                              help='List all Couchbase Server versions that are supported by the non-package-installer')
     opts.add_argument('--install-location', type=str, metavar='Path', dest='location',
-                      required=True, help='Path where Couchbase Server should be installed')
-    opts.add_argument('--package', type=str, metavar='File', dest='package', required=True,
+                      help='Path where Couchbase Server should be installed')
+    opts.add_argument('--package', type=str, metavar='File', dest='package',
                       help='The Couchbase Server package (rpm/deb) to install')
     opts.add_argument('--no-check-deps', action='store_true',
                       help="Don't verify system dependencies (use at own risk)")
@@ -436,6 +448,13 @@ def main():
     opts.add_argument('-V', '--version', action='version', help='Display version',
                       version=f"cb-non-package-installer version {__version__} (build {__build__})")
     args = opts.parse_args()
+
+    if args.list_supported_versions:
+        list_supported_versions()
+        sys.exit(0)
+
+    if args.location is None or args.package is None:
+        opts.error("--install/--upgrade requires --install-location and --package")
 
     # Set up logging
     log_level = None
