@@ -257,7 +257,7 @@ def upgrade(package, location, package_type):
 
     old_install = [os.path.join(location, f) for f in old_install]
 
-    return_code = subprocess.call(['rm', '-r'] + old_install)
+    return_code = subprocess.call(['rm', '-rf'] + old_install)
     if return_code != 0:
         error('Problem removing the old install')
 
@@ -267,14 +267,14 @@ def upgrade(package, location, package_type):
     for restore_path in config_paths:
         backup_config_path = os.path.join(backup_config, os.path.basename(restore_path))
         if os.path.isdir(backup_config_path):
-            return_code = subprocess.call(f'rm -r {restore_path}', shell=True)
+            return_code = subprocess.call(f'rm -rf {restore_path}', shell=True)
             if return_code != 0:
                 error(f'Problem removing the old config directory {restore_path}')
         return_code = subprocess.call(f'cp -r {backup_config_path} {restore_path}', shell=True)
         if return_code != 0:
             error('Problem restoring old config')
     # Remove backup config
-    return_code = subprocess.call(['rm', '-r', backup_config])
+    return_code = subprocess.call(['rm', '-rf', backup_config])
     if return_code != 0:
         error(f'Could not remove the backed up config directory {backup_config}')
     # Running 'cbupgrade' is necessary to upgrade from 6.0.X (and older) to 6.5.0 and newer versions since all of the
