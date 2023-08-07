@@ -45,9 +45,9 @@ FNULL = open(os.devnull, 'w')
 # Minimum supported Couchbase server package version (adjusted when a version reaches the end of life)
 MIN_VERSION = (6, 0, 0)
 # Maximum supported Couchbase server package version (adjusted on new minor releases after validation)
-MAX_VERSION = (7, 2, 0)
+MAX_VERSION = (7, 6, 0)
 # This list should be updated when either the minimum or the maximum version is updated
-SUPPORTED_VERSIONS_LIST = ['6.0.X', '6.5.X', '6.6.X', '7.0.X', '7.1.X', '7.2.X']
+SUPPORTED_VERSIONS_LIST = ['6.0.X', '6.5.X', '6.6.X', '7.0.X', '7.1.X', '7.2.X', '7.6.X']
 
 
 def error(message):
