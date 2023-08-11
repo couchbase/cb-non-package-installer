@@ -12,14 +12,7 @@ python3 -m venv build/venv
 . build/venv/bin/activate
 
 echo Adding pyinstaller
-# aarch64 requires a very new Pyinstaller, but our old centos6
-# agent breaks with anything newer than 4.2
-if [ `uname -m` == "arm64" ]; then
-    PYINSTALLER_VERSION=4.5.1
-else
-    PYINSTALLER_VERSION=4.2
-fi
-pip3 install pyinstaller==${PYINSTALLER_VERSION}
+pip3 install pyinstaller==4.10
 
 echo Installing cbdep requirements
 pip3 install -r ${SCRIPTPATH}/requirements.txt
