@@ -102,7 +102,7 @@ def unpack(package, location, package_type):
     logging.debug(f'Unpacking {package}')
     os.chdir(location)
     if package_type =='rpm':
-        return_code = subprocess.call(f'rpm2cpio {package} | cpio --extract --make-directories --no-absolute-filenames',
+        return_code = subprocess.call(f'rpm2cpio {package} | cpio --extract --make-directories',
                                       stdout=FNULL, stderr=FNULL, shell=True)
     else:
         return_code = subprocess.call(['dpkg', '-x', package, '.'])
