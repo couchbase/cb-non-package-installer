@@ -1,18 +1,23 @@
 #!/bin/bash -ex
 
+MINIFORGE3_VER=24.3.0-0
+PYINSTALLER_VER=6.8.0
+
 pushd `dirname $0` > /dev/null
 SCRIPTPATH=`pwd -P`
 popd > /dev/null
 
-echo Setting up Python virtual environment
+echo Setting up Python environment
 BUILDDIR=$(pwd)/build
 mkdir -p "${BUILDDIR}"
-
-python3 -m venv build/venv
-. build/venv/bin/activate
+MINIFORGE3_DIR="${BUILDDIR}/tools/miniforge3-${MINIFORGE3_VER}"
+if [ ! -d "${MINIFORGE3_DIR}" ]; then
+    cbdep install -d "${BUILDDIR}/tools" miniforge3 ${MINIFORGE3_VER}
+fi
+export PATH="${MINIFORGE3_DIR}/bin:${PATH}"
 
 echo Adding pyinstaller
-pip3 install pyinstaller==4.10
+pip3 install pyinstaller==${PYINSTALLER_VER}
 
 echo Installing cbdep requirements
 pip3 install -r ${SCRIPTPATH}/requirements.txt
