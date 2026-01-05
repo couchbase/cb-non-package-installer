@@ -280,7 +280,9 @@ def upgrade(package, location, package_type):
     # data items in the cluster have to be upgraded to the collection-aware format (MB-51344 related).
     # 'cbupgrade' is run for all versions during root upgrades using rpm and deb packages so we also run it for all
     # versions to be consistent.
-    cbupgrade(location)
+    # 'cbuprade' was removed in 8.0.0 (MB-67190)
+    if package_version[0] < 8:
+        cbupgrade(location)
     print('Upgrade has completed successfully')
     sys.exit(0)
 
