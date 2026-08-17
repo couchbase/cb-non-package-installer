@@ -32,6 +32,7 @@ Copyright (c) 2022  Couchbase Inc
 
 import argparse
 import logging
+import platform
 import re
 import os
 import shutil
@@ -121,7 +122,9 @@ def install(package, location, package_type):
     Does a fresh non package install of Couchbase Server
     """
     logging.info('Installing Couchbase Server')
-    check_install_version(get_package_version(package))
+    package_version = get_package_version(package)
+    check_install_version(package_version)
+    check_cpu_features(package_version)
     if os.listdir(location):
         error(f'Install location "{location}" is not empty. Please provide an empty directory to install to')
 
@@ -176,6 +179,100 @@ def cbupgrade(location):
         error('There was problem running cbupgrade')
 
 
+def check_cpu_features(package_version):
+    """
+    For Couchbase Server 8.x+, verifies the CPU has required instruction set support.
+    x86_64: requires AVX2 (checked via 'flags' in /proc/cpuinfo)
+    aarch64: requires ASIMD or SVE (checked via 'Features' in /proc/cpuinfo)
+    """
+    if package_version[0] < 8:
+        return
+
+    arch = platform.machine()
+
+    if arch in ('x86_64', 'AMD64', 'i686', 'i386'):
+        flags_key = 'flags'
+        required = {'avx2'}
+        label = 'AVX2'
+    elif arch in ('aarch64', 'arm64'):
+        flags_key = 'Features'
+        required = {'asimd', 'sve'}
+        label = 'ASIMD or SVE'
+    else:
+        logging.debug(f'Skipping CPU feature check on unrecognised architecture: {arch}')
+        return
+
+    feature_found = False
+    try:
+        with open('/proc/cpuinfo') as cpuinfo:
+            for line in cpuinfo:
+                if line.startswith(flags_key) and required.intersection(line.split()):
+                    feature_found = True
+                    break
+    except OSError:
+        logging.debug('Could not read /proc/cpuinfo; skipping CPU feature check')
+        return
+
+    if not feature_found:
+        error(f'Couchbase Server 8.x requires {label} CPU support, '
+              f'which was not detected on this machine ({arch})')
+
+
+def preflight_check(package_version, location):
+    """
+    Runs preflight checks before upgrading Couchbase Server.
+    """
+    check_cpu_features(package_version)
+
+    couchbase_path = os.path.join(location, 'opt/couchbase')
+    # Exclude directories not touched by the installer to avoid walking potentially
+    # large user-data trees (vbuckets, indexes, logs).
+    lib_python_path = os.path.join(couchbase_path, 'lib', 'python')
+    excluded_dirs = {
+        lib_python_path,
+        os.path.join(couchbase_path, 'var', 'lib', 'couchbase', 'data'),
+        os.path.join(couchbase_path, 'var', 'lib', 'couchbase', 'logs'),
+    }
+    root_owned = []
+
+    # Walk opt/couchbase, skipping lib/python, data, and logs entirely
+    for dirpath, dirnames, filenames in os.walk(couchbase_path, topdown=True):
+        dirnames[:] = [d for d in dirnames if os.path.join(dirpath, d) not in excluded_dirs]
+        try:
+            if os.stat(dirpath).st_uid == 0:
+                root_owned.append(dirpath)
+        except OSError:
+            pass
+        for name in filenames:
+            full_path = os.path.join(dirpath, name)
+            try:
+                if os.stat(full_path).st_uid == 0:
+                    root_owned.append(full_path)
+            except OSError:
+                pass
+
+    # Only check lib/python/__pycache__ directly — root ownership there blocks the upgrade
+    pycache_path = os.path.join(lib_python_path, '__pycache__')
+    if os.path.isdir(pycache_path):
+        for dirpath, dirnames, filenames in os.walk(pycache_path):
+            try:
+                if os.stat(dirpath).st_uid == 0:
+                    root_owned.append(dirpath)
+            except OSError:
+                pass
+            for name in filenames:
+                full_path = os.path.join(dirpath, name)
+                try:
+                    if os.stat(full_path).st_uid == 0:
+                        root_owned.append(full_path)
+                except OSError:
+                    pass
+    if root_owned:
+        paths = '\n  '.join(root_owned)
+        error(f'The following paths under opt/couchbase are owned by root, '
+              f'which is incompatible with a non-root install:\n  {paths}')
+
+
 def upgrade(package, location, package_type):
     """
     Upgrades a non package install of Couchbase Server
@@ -188,6 +285,7 @@ def upgrade(package, location, package_type):
     package_version = get_package_version(package)
     install_version = get_install_version(location)
     check_upgrade_versions(package_version, install_version)
+    preflight_check(package_version, location)
 
     # Check if couchbase-server is running
     # grep rc is 1 if no thing is found, 2 is used for error
